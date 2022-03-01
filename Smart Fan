@@ -1,0 +1,137 @@
+#define PIN_A 0
+#define LED 10
+
+#define IN1 2
+#define IN2 4
+#define ENA 9
+#define LM35 A1
+int tempval=0;
+float temp=0;
+float speed=0;
+
+int trigPin = 12;    //Trig
+int echoPin = 11;    //Echo
+float duration,cm;
+
+#include <Wire.h>
+#include <LCD.h>
+#include <LiquidCrystal_I2C.h>  
+#define LCMIIC2
+#if defined(LCMIIC2)
+#define I2C_ADDR    0x27  // Define I2C Address 
+#define BACKLIGHT_PIN  3
+#define En_pin  2
+#define Rw_pin  1
+#define Rs_pin  0
+#define D4_pin  4
+#define D5_pin  5
+#define D6_pin  6
+#define D7_pin  7
+#define BACKLIGHT_FLAG  POSITIVE
+#else // error
+#error LCM not defined
+#endif
+
+#define  LED_OFF  0
+#define  LED_ON  1
+
+/*-----( Declare objects )-----*/  
+LiquidCrystal_I2C  lcd(I2C_ADDR,En_pin,Rw_pin,Rs_pin,D4_pin,D5_pin,D6_pin,D7_pin);
+
+
+
+void setup() 
+{
+  pinMode(A1,INPUT);
+  pinMode(A0,INPUT);
+  pinMode(10,OUTPUT);
+  Serial.begin(9600);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(IN1,OUTPUT);
+  pinMode(IN2,OUTPUT);
+  pinMode(ENA,OUTPUT);
+  digitalWrite(IN1,LOW);
+  digitalWrite(IN2,HIGH);
+  lcd.begin (16,2);  // initialize the lcd 
+  lcd.setBacklightPin(BACKLIGHT_PIN,BACKLIGHT_FLAG);
+  lcd.setBacklight(LED_ON);
+  lcd.setCursor(0,0);
+  lcd.print("Nice to meet you!");
+  lcd.setCursor(0,1);
+  lcd.print("temp sensor:"); 
+  for(int i=0;i<3;i++)
+  {
+    lcd.noDisplay();
+    delay(500);
+    lcd.display();
+    delay(500);
+  }
+  delay(2000);
+}
+void loop() 
+{
+  lcd.clear();
+  delay(1000);
+  
+  tempval=analogRead(LM35); //读取LM35
+  temp=tempval*0.48876;
+  
+  int val;
+  val=analogRead(PIN_A); //读取光敏电阻并输出
+
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(5);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  duration = pulseIn(echoPin, HIGH);
+  cm = (duration/2) / 29.1;// convert the time into a distance
+
+  Serial.print("Light:");
+  Serial.print(val);
+  Serial.print("  distance:");
+  Serial.print(cm);
+  Serial.print("  temp:");
+  Serial.println(temp);
+  lcd.setCursor(0,0);
+  lcd.print("Light:");
+  lcd.print(val);
+  lcd.setCursor(0,1);
+  lcd.print("distance:");
+  lcd.print(cm);
+
+  if(cm<30) //距离过近时蜂鸣器发声
+  { 
+    digitalWrite(LED,HIGH);
+    delay(500);
+    digitalWrite(LED,LOW);
+    delay(500);
+    digitalWrite(LED,HIGH);
+    delay(500);
+    digitalWrite(LED,LOW);
+    delay(500);
+  }
+  
+  if(val>300) //光线不足时打开LED
+  {
+    digitalWrite(LED,HIGH);
+  }
+  if(val<=300) //光线充足时关掉LED
+  {
+    digitalWrite(LED,LOW);
+  }
+  if(temp<26)
+{
+  digitalWrite(IN1,LOW);
+  digitalWrite(IN2,LOW);
+}
+else if(temp>=26)
+{
+  tempval=map(temp,26,40,50,300); //利用map()函数对LM35读取信号值进行映射
+  analogWrite(ENA,tempval); //当温度值大于25时，马达转速随着温度的升高而加快
+  digitalWrite(IN1,HIGH);
+  digitalWrite(IN2,LOW);
+}
+  delay(1000);
+}
